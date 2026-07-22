@@ -15,6 +15,7 @@ const monster = document.getElementById("monster");
 const hint = document.getElementById("hint");
 const bubble = document.getElementById("bubble");
 const resetBtn = document.getElementById("reset");
+const statusEl = document.getElementById("status");
 const nf = new Intl.NumberFormat("de-DE");
 
 // Rotating "every time..." lines — a fresh reason with each KooKI.
@@ -94,10 +95,13 @@ async function syncFromServer() {
   if (pendingHits > 0) return; // don't stomp an optimistic value mid-click
   try {
     const res = await fetch(GET_URL, { cache: "no-store" });
-    if (!res.ok) return;
+    if (!res.ok) { setStatus(false, "Zähler-Server antwortet nicht (HTTP " + res.status + ")"); return; }
     const data = await res.json();
-    if (typeof data.value === "number") { count = data.value; saveCount(); render(); }
-  } catch (_) { /* offline / service down: keep the cached value */ }
+    if (typeof data.value === "number") { count = data.value; saveCount(); render(); setStatus(true, "geteilt · live"); }
+  } catch (err) {
+    console.warn("[cookie] sync failed:", err);
+    setStatus(false, "Zähler-Server nicht erreichbar – evtl. Adblocker/Tracking-Schutz");
+  }
 }
 
 // Increment the shared counter; the response is authoritative (includes others' clicks).
@@ -105,11 +109,19 @@ async function hitServer() {
   pendingHits++;
   try {
     const res = await fetch(HIT_URL, { cache: "no-store" });
-    if (!res.ok) return;
+    if (!res.ok) { setStatus(false, "Klick nicht gezählt (HTTP " + res.status + ")"); return; }
     const data = await res.json();
-    if (typeof data.value === "number") { count = data.value; saveCount(); render(); }
-  } catch (_) { /* keep the optimistic local value */ }
-  finally { pendingHits--; }
+    if (typeof data.value === "number") { count = data.value; saveCount(); render(); setStatus(true, "geteilt · live"); }
+  } catch (err) {
+    console.warn("[cookie] hit failed:", err);
+    setStatus(false, "Klick nicht gezählt – Zähler-Server blockiert/nicht erreichbar");
+  } finally { pendingHits--; }
+}
+
+// Small connectivity indicator so blocked/offline states are visible on screen.
+function setStatus(ok, msg) {
+  statusEl.textContent = msg || "";
+  statusEl.classList.toggle("status--err", !ok);
 }
 
 function render(bump = false) {

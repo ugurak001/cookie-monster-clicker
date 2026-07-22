@@ -23,6 +23,10 @@ const LINES = [
   "Immer wenn das Backlog zum Friedhof wird",
   "Immer wenn \"wir syncen uns kurz\" 90 Minuten dauert",
   "Immer wenn die Retro nichts ändert",
+  // 15-Minuten-Regel – lebt in der Sprechblase, kein extra Element
+  "Regel: Eine KooKI gibt's nur für Tasks über 15 Minuten – alles drunter zählt nicht",
+  "Unter 15 Minuten reingeklickt? Keine KooKI. So sind die Regeln.",
+  "Erst ab 15 Minuten am Nicht-Sprint-Task wandert eine KooKI in meinen Bauch",
 ];
 
 let count = loadCount();

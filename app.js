@@ -1,5 +1,15 @@
-// Cookie Monster Clicker – frontend only, state persisted in localStorage.
-const KEY = "cookieMonster.count";
+// Cookie Monster Clicker – shared counter via Abacus API (frontend only, GitHub Pages).
+const KEY = "cookieMonster.count"; // localStorage cache for instant paint
+
+// Shared counter (Abacus) – same number for everyone who opens the link.
+const API = "https://abacus.jasoncameron.dev";
+const NS = "cookie-monster-ugurak001";
+const CKEY = "sprint-kookis";
+const HIT_URL = `${API}/hit/${NS}/${CKEY}`;
+const GET_URL = `${API}/get/${NS}/${CKEY}`;
+const RESET_URL = `${API}/reset/${NS}/${CKEY}`;
+const POLL_MS = 5000;
+let pendingHits = 0;
 const countEl = document.getElementById("count");
 const monster = document.getElementById("monster");
 const hint = document.getElementById("hint");
@@ -37,8 +47,10 @@ const LINES = [
   "Erst ab 15 Minuten am Nicht-Sprint-Task wandert eine KooKI in meinen Bauch",
 ];
 
-let count = loadCount();
+let count = loadCount();   // instant paint from cache
 render();
+syncFromServer();          // fetch the real shared value
+setInterval(syncFromServer, POLL_MS);  // reflect other people's clicks
 
 monster.addEventListener("click", (e) => {
   count += 1;
@@ -49,13 +61,22 @@ monster.addEventListener("click", (e) => {
   flyCookie(e);
   newBubble();
   hint.classList.add("gone");
+  hitServer();  // count on the shared counter (authoritative)
 });
 
-resetBtn.addEventListener("click", () => {
-  if (!confirm("Zähler wirklich auf 0 zurücksetzen?")) return;
-  count = 0;
-  saveCount();
-  render(true);
+resetBtn.addEventListener("click", async () => {
+  const token = prompt("Admin-Token für neuen Sprint (setzt den geteilten Zähler auf 0):");
+  if (!token) return;
+  try {
+    const res = await fetch(`${RESET_URL}?token=${encodeURIComponent(token.trim())}`, { method: "POST" });
+    if (!res.ok) throw new Error("Token falsch oder abgelehnt");
+    const data = await res.json();
+    count = typeof data.value === "number" ? data.value : 0;
+    saveCount();
+    render(true);
+  } catch (err) {
+    alert("Reset fehlgeschlagen: " + err.message);
+  }
 });
 
 function loadCount() {
@@ -66,6 +87,29 @@ function loadCount() {
 function saveCount() {
   // Wrapped: localStorage can throw in private mode / on file:// in some browsers.
   try { localStorage.setItem(KEY, String(count)); } catch (_) {}
+}
+
+// Read the shared count from Abacus and show it (source of truth).
+async function syncFromServer() {
+  if (pendingHits > 0) return; // don't stomp an optimistic value mid-click
+  try {
+    const res = await fetch(GET_URL, { cache: "no-store" });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (typeof data.value === "number") { count = data.value; saveCount(); render(); }
+  } catch (_) { /* offline / service down: keep the cached value */ }
+}
+
+// Increment the shared counter; the response is authoritative (includes others' clicks).
+async function hitServer() {
+  pendingHits++;
+  try {
+    const res = await fetch(HIT_URL, { cache: "no-store" });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (typeof data.value === "number") { count = data.value; saveCount(); render(); }
+  } catch (_) { /* keep the optimistic local value */ }
+  finally { pendingHits--; }
 }
 
 function render(bump = false) {

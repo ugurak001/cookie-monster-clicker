@@ -2,7 +2,8 @@
 
 Ein minimalistischer Klick-Zähler: Klick das Krümelmonster, es isst eine KooKI
 (Keks + KI), der Zähler steigt. Reines Frontend (HTML/CSS/JS), kein Framework, kein Build.
-Der Stand wird aktuell lokal im Browser gespeichert (localStorage) — also pro Gerät.
+Der Zählerstand ist **für alle gleich** (geteilt über die kostenlose Abacus Counter-API);
+localStorage dient nur als Cache für sofortiges Anzeigen.
 
 ## Lokal starten
 
@@ -21,8 +22,10 @@ Dann http://localhost:8000 öffnen.
 2. Settings → Pages → Branch `main`, Ordner `/ (root)` → Save.
 3. Nach ~1 Minute live unter `https://<user>.github.io/<repo>/`.
 
-## Bewusste Grenze
+## Geteilter Zähler
 
-Der Zähler ist **pro Browser/Gerät** (localStorage), nicht geteilt. Ein globaler,
-geteilter Zähler mit Team-Links bräuchte ein Backend – der Ausbaupfad steht im
-Projekt-Plan im Obsidian-Vault.
+Der Zähler ist **für alle gleich** – er läuft über die kostenlose
+[Abacus](https://jasoncameron.dev/abacus/) Counter-API (kein eigener Account).
+Beim Laden wird der Wert geholt und alle 5 Sekunden aktualisiert, damit man
+fremde Klicks live sieht. Der Reset-Button setzt den geteilten Zähler auf 0 und
+verlangt dafür das Admin-Token (nur der Owner kann zurücksetzen).

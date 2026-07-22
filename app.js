@@ -3,7 +3,27 @@ const KEY = "cookieMonster.count";
 const countEl = document.getElementById("count");
 const monster = document.getElementById("monster");
 const hint = document.getElementById("hint");
+const bubble = document.getElementById("bubble");
+const resetBtn = document.getElementById("reset");
 const nf = new Intl.NumberFormat("de-DE");
+
+// Rotating "every time..." lines — a fresh reason with each KooKI.
+const LINES = [
+  "Immer wenn ich an einem Task arbeite, der nicht im Sprint ist",
+  "Immer wenn ein Meeting auch eine E-Mail hätte sein können",
+  "Immer wenn jemand \"kurze Frage\" sagt",
+  "Immer wenn das Daily 40 Minuten dauert",
+  "Immer wenn der Scope schon wieder wächst",
+  "Immer wenn aus dem MVP plötzlich 20 Features werden",
+  "Immer wenn jemand meinen Fokus-Block überbucht",
+  "Immer wenn Freitag um 17 Uhr deployt wird",
+  "Immer wenn \"agil\" heißt: kein Plan",
+  "Immer wenn jemand die Definition of Done ignoriert",
+  "Immer wenn ich \"das mach ich schnell\" sage",
+  "Immer wenn das Backlog zum Friedhof wird",
+  "Immer wenn \"wir syncen uns kurz\" 90 Minuten dauert",
+  "Immer wenn die Retro nichts ändert",
+];
 
 let count = loadCount();
 render();
@@ -15,7 +35,15 @@ monster.addEventListener("click", (e) => {
   chomp();
   jiggleEyes();
   flyCookie(e);
+  newBubble();
   hint.classList.add("gone");
+});
+
+resetBtn.addEventListener("click", () => {
+  if (!confirm("Zähler wirklich auf 0 zurücksetzen?")) return;
+  count = 0;
+  saveCount();
+  render(true);
 });
 
 function loadCount() {
@@ -75,4 +103,16 @@ function flyCookie(e) {
     { duration: 480, easing: "cubic-bezier(.35,.1,.35,1)" }
   );
   anim.onfinish = () => cookie.remove();
+}
+
+// Pick a new random line (avoid repeating the current one).
+function newBubble() {
+  let line;
+  do {
+    line = LINES[Math.floor(Math.random() * LINES.length)];
+  } while (line === bubble.textContent && LINES.length > 1);
+  bubble.textContent = line;
+  bubble.classList.remove("pop");
+  void bubble.offsetWidth;
+  bubble.classList.add("pop");
 }

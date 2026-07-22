@@ -3,17 +3,18 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Krümelmonster – Keks-Zähler</title>
+  <title>Krümelmonster – KooKI-Zähler</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <main class="app">
     <div class="counter">
       <span class="count" id="count">0</span>
-      <span class="label">Kekse gegessen</span>
+      <span class="label">KooKIs gegessen</span>
     </div>
 
     <div class="stage">
+      <div class="bubble" id="bubble">Immer wenn ich an einem Task arbeite, der nicht im Sprint ist</div>
       <button class="monster" id="monster" type="button" aria-label="Krümelmonster füttern">
         <span class="eye eye--left"><span class="pupil"></span></span>
         <span class="eye eye--right"><span class="pupil"></span></span>
@@ -21,7 +22,8 @@
       </button>
     </div>
 
-    <p class="hint" id="hint">Klick das Monster – es will Kekse!</p>
+    <p class="hint" id="hint">Klick das Monster – es will KooKIs!</p>
+    <button class="reset" id="reset" type="button">Reset</button>
   </main>
 
   <script src="app.js"></script>

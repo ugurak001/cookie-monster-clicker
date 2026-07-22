@@ -1,8 +1,8 @@
-# Krümelmonster – Keks-Zähler
+# Krümelmonster – KooKI-Zähler
 
-Ein minimalistischer Klick-Zähler: Klick das Krümelmonster, es isst einen Keks,
-der Zähler steigt. Reines Frontend (HTML/CSS/JS), kein Framework, kein Build.
-Der Stand wird lokal im Browser gespeichert (localStorage).
+Ein minimalistischer Klick-Zähler: Klick das Krümelmonster, es isst eine KooKI
+(Keks + KI), der Zähler steigt. Reines Frontend (HTML/CSS/JS), kein Framework, kein Build.
+Der Stand wird aktuell lokal im Browser gespeichert (localStorage) — also pro Gerät.
 
 ## Lokal starten
 

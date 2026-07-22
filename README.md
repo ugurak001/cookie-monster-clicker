@@ -28,4 +28,8 @@ Der Zähler ist **für alle gleich** – er läuft über die kostenlose
 [Abacus](https://jasoncameron.dev/abacus/) Counter-API (kein eigener Account).
 Beim Laden wird der Wert geholt und alle 5 Sekunden aktualisiert, damit man
 fremde Klicks live sieht. Der Reset-Button setzt den geteilten Zähler auf 0 und
-verlangt dafür das Admin-Token (nur der Owner kann zurücksetzen).
+verlangt dafür das Team-Passwort `***REMOVED-PASSWORD***`.
+
+Hinweis: Der Abacus-Admin-Key steht im `app.js` und ist damit für jeden im
+Quelltext lesbar. Das Passwort schützt nur vor versehentlichen Klicks, nicht vor
+jemandem, der den Code liest – für einen Spaß-Zähler reicht das.

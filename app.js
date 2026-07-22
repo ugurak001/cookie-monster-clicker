@@ -4,7 +4,11 @@ const KEY = "cookieMonster.count"; // localStorage cache for instant paint
 // Shared counter (Abacus) – same number for everyone who opens the link.
 const API = "https://abacus.jasoncameron.dev";
 const NS = "cookie-monster-ugurak001";
-const CKEY = "sprint-kookis";
+const CKEY = "sprint-kookis-v2";
+// Reset needs Abacus' admin key. It sits in the frontend, so it's public —
+// fine for a fun counter; the team password below is just a "don't click by accident" guard.
+const ADMIN_KEY = "***REMOVED-ADMIN-KEY***";
+const TEAM_PASSWORD = "***REMOVED-PASSWORD***";
 const HIT_URL = `${API}/hit/${NS}/${CKEY}`;
 const GET_URL = `${API}/get/${NS}/${CKEY}`;
 const RESET_URL = `${API}/reset/${NS}/${CKEY}`;
@@ -66,11 +70,18 @@ monster.addEventListener("click", (e) => {
 });
 
 resetBtn.addEventListener("click", async () => {
-  const token = prompt("Admin-Token für neuen Sprint (setzt den geteilten Zähler auf 0):");
-  if (!token) return;
+  const pw = prompt("Team-Passwort für neuen Sprint (setzt den geteilten Zähler auf 0):");
+  if (!pw) return;
+  if (pw.trim() !== TEAM_PASSWORD) {
+    alert("Falsches Passwort.");
+    return;
+  }
   try {
-    const res = await fetch(`${RESET_URL}?token=${encodeURIComponent(token.trim())}`, { method: "POST" });
-    if (!res.ok) throw new Error("Token falsch oder abgelehnt");
+    const res = await fetch(RESET_URL, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${ADMIN_KEY}` },
+    });
+    if (!res.ok) throw new Error("Zähler-Server hat abgelehnt (HTTP " + res.status + ")");
     const data = await res.json();
     count = typeof data.value === "number" ? data.value : 0;
     saveCount();

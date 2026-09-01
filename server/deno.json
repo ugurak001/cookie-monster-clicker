@@ -3,5 +3,14 @@
   "tasks": {
     "dev": "deno run -A --watch main.ts",
     "test": "deno test -A"
+  },
+  "deploy": {
+    "org": "ugurak001",
+    "app": "kooki-zaehler"
   }
 }
+
+
+
+
+

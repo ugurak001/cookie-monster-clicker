@@ -1,9 +1,9 @@
-// Cookie Monster Clicker – shared counter + comments via small Deno Deploy backend (see server/).
+// Cookie Monster Clicker – shared counter + comments; frontend and API served by main.ts on Deno Deploy.
 const KEY = "cookieMonster.count"; // localStorage cache for instant paint
 
 // Backend: count + comments live in Deno KV; reset is checked server-side against TEAM_PASSWORD.
-const IS_LOCAL = ["localhost", "127.0.0.1"].includes(location.hostname);
-const API = IS_LOCAL ? "http://localhost:8000" : "https://kooki-zaehler.ugurak001.deno.net";
+// Frontend and API share one origin (Deno Deploy). Only the legacy GitHub Pages copy talks cross-origin.
+const API = location.hostname.endsWith("github.io") ? "https://kooki-zaehler.ugurak001.deno.net" : "";
 const POLL_MS = 5000;
 const MAX_COMMENT = 100;
 let pendingHits = 0;

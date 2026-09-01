@@ -1,4 +1,4 @@
-// KooKI counter backend: shared count + comments in Deno KV, reset guarded by TEAM_PASSWORD (env).
+// KooKI app: serves the static frontend + API (count/comments in Deno KV, reset guarded by TEAM_PASSWORD env).
 const MAX_COMMENT = 100;
 const COMMENTS_SHOWN = 20;
 const CORS = {
@@ -20,6 +20,7 @@ export function createHandler(kv: Deno.Kv, teamPassword: string) {
     if (req.method === "POST" && path === "/comment") return handleComment(kv, req);
     if (req.method === "POST" && path === "/reset") return handleReset(kv, req, teamPassword);
     if (req.method === "GET" && path === "/archive") return handleArchive(kv);
+    if (req.method === "GET" && path in STATIC) return serveStatic(path);
     return json({ error: "not found" }, 404);
   };
 }
@@ -78,6 +79,20 @@ h2{font-size:1rem;margin-top:1.5rem}ul{padding-left:1.2rem}li{margin:.3rem 0}sma
 }
 
 type Comment = { text: string; ts: number };
+
+// Frontend files live next to this script; only these three are served.
+const STATIC: Record<string, [file: string, type: string]> = {
+  "/": ["index.html", "text/html; charset=utf-8"],
+  "/index.html": ["index.html", "text/html; charset=utf-8"],
+  "/app.js": ["app.js", "text/javascript; charset=utf-8"],
+  "/style.css": ["style.css", "text/css; charset=utf-8"],
+};
+
+async function serveStatic(path: string): Promise<Response> {
+  const [file, type] = STATIC[path];
+  const body = await Deno.readFile(new URL(`./${file}`, import.meta.url));
+  return new Response(body, { headers: { "Content-Type": type, "Cache-Control": "no-cache" } });
+}
 
 function esc(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));

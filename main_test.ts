@@ -51,3 +51,13 @@ Deno.test("reset: needs password, archives comments, optional count", async () =
   assertStringIncludes(html, "· 1 KooKIs");
   kv.close();
 });
+
+Deno.test("static: serves the frontend from the same origin", async () => {
+  const { kv, call } = await setup();
+  const res = await call("/");
+  assertEquals(res.headers.get("content-type"), "text/html; charset=utf-8");
+  assertStringIncludes(await res.text(), 'id="monster"');
+  assertEquals((await call("/app.js")).headers.get("content-type"), "text/javascript; charset=utf-8");
+  assertEquals((await call("/main.ts")).status, 404); // only the three frontend files are exposed
+  kv.close();
+});

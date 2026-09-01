@@ -1,5 +1,7 @@
 {
-  "unstable": ["kv"],
+  "unstable": [
+    "kv"
+  ],
   "tasks": {
     "dev": "deno run -A --watch main.ts",
     "test": "deno test -A"
@@ -9,8 +11,4 @@
     "app": "kooki-zaehler"
   }
 }
-
-
-
-
 

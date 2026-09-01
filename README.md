@@ -1,10 +1,12 @@
 # Krümelmonster – KooKI-Zähler
 
 Ein minimalistischer Klick-Zähler: Klick das Krümelmonster, es isst eine KooKI
-(Keks + KI), der Zähler steigt. Reines Frontend (HTML/CSS/JS), kein Framework, kein Build.
-Der Zählerstand und die Kommentare sind **für alle gleich** – sie liegen in einem
-kleinen Deno-Deploy-Backend (`server/`, Deno KV). localStorage dient nur als Cache
-für sofortiges Anzeigen.
+(Keks + KI), der Zähler steigt. Frontend ohne Framework und Build (HTML/CSS/JS), dazu
+ein ~100-Zeilen-Backend (`main.ts`, Deno KV), das die drei Frontend-Dateien gleich mit
+ausliefert – **alles unter einer URL**: https://kooki-zaehler.ugurak001.deno.net
+
+Zähler und Kommentare sind für alle gleich; localStorage dient nur als Cache für
+sofortiges Anzeigen.
 
 ## Funktionen
 
@@ -17,39 +19,34 @@ für sofortiges Anzeigen.
 
 ## Lokal starten
 
-Backend (Port 8000):
-
 ```
-cd server
 TEAM_PASSWORD=test deno task dev
 ```
 
-Frontend: `index.html` über einen kleinen Server öffnen (auf `localhost` spricht die
-App automatisch mit `http://localhost:8000`):
+Dann http://localhost:8000 öffnen (Frontend + API). Tests: `deno task test`.
+
+## Deploy (Deno Deploy, kostenlos, Login mit GitHub)
+
+Einmalig eingerichtet: Org `ugurak001`, App `kooki-zaehler`, KV-Datenbank `kooki-kv`,
+Secret `TEAM_PASSWORD`. Bei jeder Änderung im Repo-Root:
 
 ```
-python3 -m http.server 8080
+export DENO_DEPLOY_TOKEN="$(security find-generic-password -s deno-deploy-token -w)"
+deno deploy --prod
 ```
 
-Dann http://localhost:8080 öffnen. Tests: `cd server && deno task test`.
-
-## Deploy
-
-**Frontend** – GitHub Pages: Settings → Pages → Branch `main`, Ordner `/ (root)`.
-Live unter `https://<user>.github.io/<repo>/`.
-
-**Backend** – Deno Deploy (kostenlos, Login mit GitHub):
+Neu aufsetzen (falls nötig):
 
 ```
-cd server
-deno deploy create            # einmalig: App anlegen (interaktiv)
+deno deploy create --source local --runtime-mode dynamic --entrypoint main.ts --region eu --app kooki-zaehler
 deno deploy database provision kooki-kv --kind denokv
-deno deploy database assign kooki-kv --app <app-name>
+deno deploy database assign kooki-kv --app kooki-zaehler
 deno deploy env add --secret TEAM_PASSWORD '<geheim>'
-deno deploy --prod            # bei jeder Änderung in server/
+deno deploy --prod
 ```
 
-Die URL der App in `app.js` unter `API` eintragen.
+Die alte GitHub-Pages-Kopie (`https://ugurak001.github.io/cookie-monster-clicker/`) funktioniert
+weiter und spricht cross-origin mit demselben Backend.
 
 ## Geheimnisse
 
@@ -60,7 +57,7 @@ eine Env-Variable auf Deno Deploy (`TEAM_PASSWORD`) und wird serverseitig geprü
 Zählerstand manuell setzen (z. B. nach Migration):
 
 ```
-curl -X POST https://<app>.deno.net/reset \
+curl -X POST https://kooki-zaehler.ugurak001.deno.net/reset \
   -H 'Content-Type: application/json' \
   -d '{"password":"<geheim>","count":8}'
 ```
@@ -74,3 +71,4 @@ curl -X POST https://<app>.deno.net/reset \
 | POST    | `/comment` | `{text}` (1–100 Zeichen)                                |
 | POST    | `/reset`   | `{password, count?}` – setzt Zähler (default 0), archiviert Kommentare |
 | GET     | `/archive` | HTML-Seite: alle abgeschlossenen Sprints mit ihren Kommentaren |
+| GET     | `/`, `/app.js`, `/style.css` | Frontend                              |

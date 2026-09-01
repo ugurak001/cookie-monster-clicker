@@ -190,11 +190,11 @@ function renderComments(comments) {
   }));
 }
 
-// Remove one comment for everyone (id = "<ts>-<seq>", see /state).
+// Remove one comment for everyone (id = "<ts>/<seq>", see /state).
 async function deleteComment(id) {
   if (!confirm("Diesen Kommentar löschen?")) return;
   try {
-    const res = await fetch(`${API}/comment/${id.replace("-", "/")}`, { method: "DELETE" });
+    const res = await fetch(`${API}/comment/${id}`, { method: "DELETE" });
     if (!res.ok) throw new Error("HTTP " + res.status);
     await syncFromServer();
   } catch (err) {

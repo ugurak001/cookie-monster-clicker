@@ -41,18 +41,28 @@ async function handleComment(kv: Deno.Kv, req: Request): Promise<Response> {
 
 // DELETE /comment/<ts>/<seq> – removes exactly one comment (no password, same trust level as adding one).
 async function handleDelete(kv: Deno.Kv, path: string): Promise<Response> {
-  const m = path.match(/^\/comment\/(\d+)\/(\d+)$/);
+  const m = path.match(/^\/comment\/(\d+)\/([^/]+)$/);
   if (!m) return json({ error: "Ungültige Kommentar-ID" }, 400);
-  await kv.delete(["comments", Number(m[1]), Number(m[2])]);
+  await kv.delete(["comments", Number(m[1]), keyPart(m[2])]);
   return json({ ok: true });
 }
 
 // DELETE /archive/<sprintEnd>/<ts>/<seq> – removes one archived comment.
 async function handleDeleteArchived(kv: Deno.Kv, path: string): Promise<Response> {
-  const m = path.match(/^\/archive\/(\d+)\/(\d+)\/(\d+)$/);
+  const m = path.match(/^\/archive\/(\d+)\/(\d+)\/([^/]+)$/);
   if (!m) return json({ error: "Ungültige Archiv-ID" }, 400);
-  await kv.delete(["archive", Number(m[1]), Number(m[2]), Number(m[3])]);
+  await kv.delete(["archive", Number(m[1]), Number(m[2]), keyPart(m[3])]);
   return json({ ok: true });
+}
+
+// Last key part is a running number now, but older entries used UUID strings – accept both.
+function keyPart(s: string): Deno.KvKeyPart {
+  return /^\d+$/.test(s) ? Number(s) : s;
+}
+
+// Ids are the key parts joined with "/" so they map 1:1 onto the DELETE routes.
+function idOf(parts: Deno.KvKeyPart[]): string {
+  return parts.map(String).join("/");
 }
 
 async function handleReset(kv: Deno.Kv, req: Request, passwordHash: string): Promise<Response> {
@@ -87,7 +97,7 @@ async function handleArchive(kv: Deno.Kv): Promise<Response> {
   for await (const s of kv.list<{ sprintEnd: number; count: number }>({ prefix: ["sprints"] }, { reverse: true })) {
     const comments = [];
     for await (const c of kv.list<Comment>({ prefix: ["archive", s.value.sprintEnd] }, { reverse: true })) {
-      comments.push({ ...c.value, id: `${String(c.key[1])}-${String(c.key[2])}-${String(c.key[3])}` });
+      comments.push({ ...c.value, id: idOf(c.key.slice(1)) });
     }
     sprints.push({ sprintEnd: s.value.sprintEnd, count: s.value.count, comments });
   }
@@ -114,7 +124,7 @@ async function serveStatic(path: string): Promise<Response> {
 async function readState(kv: Deno.Kv) {
   const comments = [];
   const iter = kv.list<Comment>({ prefix: ["comments"] }, { reverse: true, limit: COMMENTS_SHOWN });
-  for await (const e of iter) comments.push({ ...e.value, id: `${String(e.key[1])}-${String(e.key[2])}` });
+  for await (const e of iter) comments.push({ ...e.value, id: idOf(e.key.slice(1)) });
   return { count: await readCount(kv), comments };
 }
 

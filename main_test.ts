@@ -59,7 +59,7 @@ Deno.test("delete: removes exactly one comment by id", async () => {
   await post("/comment", { text: "weg" });
   let { comments } = await (await call("/state")).json();
   const victim = comments.find((c: { text: string }) => c.text === "weg");
-  assertEquals((await call(`/comment/${victim.id.replace("-", "/")}`, { method: "DELETE" })).status, 200);
+  assertEquals((await call(`/comment/${victim.id}`, { method: "DELETE" })).status, 200);
   assertEquals((await call("/comment/abc", { method: "DELETE" })).status, 400);
   ({ comments } = await (await call("/state")).json());
   assertEquals(comments.map((c: { text: string }) => c.text), ["bleibt"]);
@@ -83,8 +83,20 @@ Deno.test("delete archived: removes one archived comment by id", async () => {
   await post("/reset", { password: PW });
   let { sprints } = await (await call("/archive")).json();
   const victim = sprints[0].comments.find((c: { text: string }) => c.text === "alt-weg");
-  assertEquals((await call(`/archive/${victim.id.replaceAll("-", "/")}`, { method: "DELETE" })).status, 200);
+  assertEquals((await call(`/archive/${victim.id}`, { method: "DELETE" })).status, 200);
   ({ sprints } = await (await call("/archive")).json());
   assertEquals(sprints[0].comments.map((c: { text: string }) => c.text), ["alt-bleibt"]);
+  kv.close();
+});
+
+Deno.test("delete archived: works for legacy entries with UUID key parts", async () => {
+  const { kv, call } = await setup();
+  await kv.set(["sprints", 1000], { sprintEnd: 1000, count: 3, comments: 1 });
+  await kv.set(["archive", 1000, 900, "0cb7fde9-9aeb-47f2-a836-40b238dd78e2"], { text: "legacy", ts: 900 });
+  const { sprints } = await (await call("/archive")).json();
+  const id = sprints[0].comments[0].id;
+  assertEquals(id, "1000/900/0cb7fde9-9aeb-47f2-a836-40b238dd78e2");
+  assertEquals((await call(`/archive/${id}`, { method: "DELETE" })).status, 200);
+  assertEquals((await (await call("/archive")).json()).sprints[0].comments, []);
   kv.close();
 });

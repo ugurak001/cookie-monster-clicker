@@ -75,7 +75,7 @@ curl -X POST https://kooki-zaehler.ugurak001.deno.net/reset \
 | GET     | `/state`   | `{count, comments:[{text, ts}]}` – letzte 20 Kommentare |
 | POST    | `/hit`     | Zähler +1, gibt `{count}` zurück                        |
 | POST    | `/comment` | `{text}` (1–100 Zeichen)                                |
-| DELETE  | `/comment/{ts}/{seq}` | einen Kommentar löschen (`id` aus `/state` = `ts-seq`) |
+| DELETE  | `/comment/{ts}/{seq}` | einen Kommentar löschen (`id` aus `/state` = `ts/seq`) |
 | DELETE  | `/archive/{sprintEnd}/{ts}/{seq}` | einen archivierten Kommentar löschen (`id` aus `/archive`) |
 | POST    | `/reset`   | `{password, count?}` – setzt Zähler (default 0), archiviert Kommentare |
 | GET     | `/archive` | JSON `{sprints:[{sprintEnd, count, comments}]}` – wird von `archive.html` gerendert |

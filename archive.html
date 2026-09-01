@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>KooKI-Archiv – Ältere Sprints</title>
-  <link rel="stylesheet" href="style.css?v=11" />
+  <link rel="stylesheet" href="style.css?v=12" />
   <style>
     body { overflow-y: auto; -webkit-user-select: text; user-select: text; }
     .archive { width: min(92vw, 720px); margin: 2rem auto; }
@@ -66,11 +66,11 @@
       }
     }
 
-    // id = "<sprintEnd>-<ts>-<seq>" (see /archive); removes the entry for everyone.
+    // id = "<sprintEnd>/<ts>/<seq>" (see /archive); removes the entry for everyone.
     async function deleteArchived(id, li) {
       if (!confirm("Diesen archivierten Kommentar löschen?")) return;
       try {
-        const res = await fetch(`${API}/archive/${id.replaceAll("-", "/")}`, { method: "DELETE" });
+        const res = await fetch(`${API}/archive/${id}`, { method: "DELETE" });
         if (!res.ok) throw new Error("HTTP " + res.status);
         li.remove();
       } catch (err) {

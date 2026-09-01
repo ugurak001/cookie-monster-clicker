@@ -21,7 +21,7 @@ const commentsEmpty = document.getElementById("comments-empty");
 const nf = new Intl.NumberFormat("de-DE");
 const rtf = new Intl.RelativeTimeFormat("de", { numeric: "auto" });
 const canHover = matchMedia("(hover: hover)").matches; // don't pop the keyboard on phones
-document.getElementById("archive-link").href = `${API}/archive`;
+
 
 // Rotating "every time..." lines — a fresh reason with each KooKI.
 const LINES = [
@@ -179,9 +179,27 @@ function renderComments(comments) {
     const time = document.createElement("time");
     time.dateTime = new Date(c.ts).toISOString();
     time.textContent = relTime(c.ts);
-    li.append(text, time);
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "c-del";
+    del.setAttribute("aria-label", "Kommentar löschen");
+    del.textContent = "×";
+    del.addEventListener("click", () => deleteComment(c.id));
+    li.append(text, time, del);
     return li;
   }));
+}
+
+// Remove one comment for everyone (id = "<ts>-<seq>", see /state).
+async function deleteComment(id) {
+  if (!confirm("Diesen Kommentar löschen?")) return;
+  try {
+    const res = await fetch(`${API}/comment/${id.replace("-", "/")}`, { method: "DELETE" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    await syncFromServer();
+  } catch (err) {
+    setStatus(false, "Löschen fehlgeschlagen – " + err.message);
+  }
 }
 
 function relTime(ts) {

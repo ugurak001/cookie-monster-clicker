@@ -1,11 +1,11 @@
 import { assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
-import { createHandler } from "./main.ts";
+import { createHandler, sha256Hex } from "./main.ts";
 
 const PW = "test-pw";
 
 async function setup() {
   const kv = await Deno.openKv(":memory:");
-  const h = createHandler(kv, PW);
+  const h = createHandler(kv, await sha256Hex(PW)); // server only ever sees the hash
   const call = (path: string, init?: RequestInit) => h(new Request(`http://x${path}`, init));
   const post = (path: string, body: unknown) =>
     call(path, { method: "POST", body: JSON.stringify(body), headers: { "Content-Type": "application/json" } });
@@ -45,10 +45,24 @@ Deno.test("reset: needs password, archives comments, optional count", async () =
   assertEquals(state, { count: 8, comments: [] });
   assertEquals((await (await post("/reset", { password: PW })).json()).count, 0);
 
-  // archived, not deleted – visible on /archive with the old count, HTML-escaped
-  const html = await (await call("/archive")).text();
-  assertStringIncludes(html, "hi &lt;b&gt;alt&lt;/b&gt;");
-  assertStringIncludes(html, "· 1 KooKIs");
+  // archived, not deleted – /archive lists the sprint with its old count and comments
+  const { sprints } = await (await call("/archive")).json();
+  assertEquals(sprints.length, 1);
+  assertEquals(sprints[0].count, 1);
+  assertEquals(sprints[0].comments.map((c: { text: string }) => c.text), ["hi <b>alt</b>"]);
+  kv.close();
+});
+
+Deno.test("delete: removes exactly one comment by id", async () => {
+  const { kv, call, post } = await setup();
+  await post("/comment", { text: "bleibt" });
+  await post("/comment", { text: "weg" });
+  let { comments } = await (await call("/state")).json();
+  const victim = comments.find((c: { text: string }) => c.text === "weg");
+  assertEquals((await call(`/comment/${victim.id.replace("-", "/")}`, { method: "DELETE" })).status, 200);
+  assertEquals((await call("/comment/abc", { method: "DELETE" })).status, 400);
+  ({ comments } = await (await call("/state")).json());
+  assertEquals(comments.map((c: { text: string }) => c.text), ["bleibt"]);
   kv.close();
 });
 

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KooKI-Archiv – Ältere Sprints</title>
+  <link rel="stylesheet" href="style.css?v=11" />
+  <style>
+    body { overflow-y: auto; -webkit-user-select: text; user-select: text; }
+    .archive { width: min(92vw, 720px); margin: 2rem auto; }
+    .archive h1 { font-size: 1.4rem; margin-bottom: .3rem; }
+    .archive .back { display: inline-block; margin-bottom: 1.5rem; font-size: .9rem; color: var(--ink); opacity: .65; }
+    .archive .back:hover { opacity: 1; }
+    .sprint { margin-top: 1.5rem; }
+    .sprint h2 { font-size: .8rem; letter-spacing: .12em; text-transform: uppercase; opacity: .65; margin-bottom: .6rem; }
+    .archive .comments-list li { padding-right: .75rem; }
+    .archive .empty, .archive .error { opacity: .6; font-size: .95rem; }
+    .archive .error { color: #b4462e; opacity: 1; }
+  </style>
+</head>
+<body>
+  <main class="archive">
+    <h1>KooKI-Archiv</h1>
+    <a class="back" href="./">← zurück zum Monster</a>
+    <div id="sprints"><p class="empty">Lade …</p></div>
+  </main>
+
+  <script>
+    // Same rule as app.js: GitHub Pages talks to the Deno backend, everything else is same-origin.
+    const API = location.hostname.endsWith("github.io") ? "https://kooki-zaehler.ugurak001.deno.net" : "";
+    const root = document.getElementById("sprints");
+    const fmt = new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" });
+
+    fetch(`${API}/archive`, { cache: "no-store" })
+      .then((r) => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+      .then(({ sprints }) => render(sprints))
+      .catch((err) => { root.innerHTML = ""; root.append(p("error", "Archiv nicht erreichbar – " + err.message)); });
+
+    function render(sprints) {
+      root.innerHTML = "";
+      if (!sprints.length) { root.append(p("empty", "Noch kein abgeschlossener Sprint.")); return; }
+      for (const s of sprints) {
+        const section = document.createElement("section");
+        section.className = "sprint";
+        const h2 = document.createElement("h2");
+        h2.textContent = `Sprint bis ${fmt.format(s.sprintEnd)} · ${s.count} KooKIs`;
+        const ul = document.createElement("ul");
+        ul.className = "comments-list";
+        for (const c of s.comments) {
+          const li = document.createElement("li");
+          const text = document.createElement("span");
+          text.className = "c-text";
+          text.textContent = c.text;
+          const time = document.createElement("time");
+          time.textContent = fmt.format(c.ts);
+          li.append(text, time);
+          ul.append(li);
+        }
+        section.append(h2, ul);
+        root.append(section);
+      }
+    }
+
+    function p(cls, msg) { const el = document.createElement("p"); el.className = cls; el.textContent = msg; return el; }
+  </script>
+</body>
+</html>

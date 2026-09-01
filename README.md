@@ -2,8 +2,11 @@
 
 Ein minimalistischer Klick-Zähler: Klick das Krümelmonster, es isst eine KooKI
 (Keks + KI), der Zähler steigt. Frontend ohne Framework und Build (HTML/CSS/JS), dazu
-ein ~100-Zeilen-Backend (`main.ts`, Deno KV), das die drei Frontend-Dateien gleich mit
-ausliefert – **alles unter einer URL**: https://kooki-zaehler.ugurak001.deno.net
+ein ~150-Zeilen-Backend (`main.ts`, Deno KV), das die Frontend-Dateien gleich mit ausliefert.
+
+- **Team-URL:** https://ugurak001.github.io/cookie-monster-clicker/ (GitHub Pages, Frontend)
+- **Backend + Zweit-URL:** https://kooki-zaehler.ugurak001.deno.net (Deno Deploy, Frontend + API)
+- Änderungshistorie: [CHANGELOG.md](CHANGELOG.md)
 
 Zähler und Kommentare sind für alle gleich; localStorage dient nur als Cache für
 sofortiges Anzeigen.
@@ -22,10 +25,11 @@ sofortiges Anzeigen.
 ## Lokal starten
 
 ```
-TEAM_PASSWORD=test deno task dev
+TEAM_PASSWORD_SHA256="$(printf '%s' 'test' | shasum -a 256 | cut -d' ' -f1)" deno task dev
 ```
 
-Dann http://localhost:8000 öffnen (Frontend + API). Tests: `deno task test`.
+Dann http://localhost:8000 öffnen (Frontend + API); Reset-Passwort lokal ist `test`.
+Tests: `deno task test`, Lint: `deno lint main.ts main_test.ts`.
 
 ## Deploy (Deno Deploy, kostenlos, Login mit GitHub)
 
@@ -47,8 +51,9 @@ deno deploy env add --secret TEAM_PASSWORD_SHA256 "$(printf '%s' '<geheim>' | sh
 deno deploy --prod
 ```
 
-Die alte GitHub-Pages-Kopie (`https://ugurak001.github.io/cookie-monster-clicker/`) funktioniert
-weiter und spricht cross-origin mit demselben Backend.
+Frontend-Änderungen gehen zusätzlich per `git push` live (GitHub Pages, Branch `main`, Root).
+Pages cached 10 Minuten – bei Änderungen an `app.js`/`style.css` den `?v=`-Parameter in
+`index.html` und `archive.html` hochzählen.
 
 ## Geheimnisse
 
@@ -72,7 +77,7 @@ curl -X POST https://kooki-zaehler.ugurak001.deno.net/reset \
 
 | Methode | Pfad       | Beschreibung                                            |
 |---------|------------|---------------------------------------------------------|
-| GET     | `/state`   | `{count, comments:[{text, ts}]}` – letzte 20 Kommentare |
+| GET     | `/state`   | `{count, comments:[{text, ts, id}]}` – letzte 20 Kommentare |
 | POST    | `/hit`     | Zähler +1, gibt `{count}` zurück                        |
 | POST    | `/comment` | `{text}` (1–100 Zeichen)                                |
 | DELETE  | `/comment/{ts}/{seq}` | einen Kommentar löschen (`id` aus `/state` = `ts/seq`) |

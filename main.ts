@@ -21,6 +21,7 @@ export function createHandler(kv: Deno.Kv, passwordHash: string) {
     }
     if (req.method === "POST" && path === "/comment") return handleComment(kv, req);
     if (req.method === "DELETE" && path.startsWith("/comment/")) return handleDelete(kv, path);
+    if (req.method === "DELETE" && path.startsWith("/archive/")) return handleDeleteArchived(kv, path);
     if (req.method === "POST" && path === "/reset") return handleReset(kv, req, passwordHash);
     if (req.method === "GET" && path === "/archive") return handleArchive(kv);
     if (req.method === "GET" && path in STATIC) return serveStatic(path);
@@ -43,6 +44,14 @@ async function handleDelete(kv: Deno.Kv, path: string): Promise<Response> {
   const m = path.match(/^\/comment\/(\d+)\/(\d+)$/);
   if (!m) return json({ error: "Ungültige Kommentar-ID" }, 400);
   await kv.delete(["comments", Number(m[1]), Number(m[2])]);
+  return json({ ok: true });
+}
+
+// DELETE /archive/<sprintEnd>/<ts>/<seq> – removes one archived comment.
+async function handleDeleteArchived(kv: Deno.Kv, path: string): Promise<Response> {
+  const m = path.match(/^\/archive\/(\d+)\/(\d+)\/(\d+)$/);
+  if (!m) return json({ error: "Ungültige Archiv-ID" }, 400);
+  await kv.delete(["archive", Number(m[1]), Number(m[2]), Number(m[3])]);
   return json({ ok: true });
 }
 
@@ -76,8 +85,10 @@ async function archiveComments(kv: Deno.Kv) {
 async function handleArchive(kv: Deno.Kv): Promise<Response> {
   const sprints = [];
   for await (const s of kv.list<{ sprintEnd: number; count: number }>({ prefix: ["sprints"] }, { reverse: true })) {
-    const comments: Comment[] = [];
-    for await (const c of kv.list<Comment>({ prefix: ["archive", s.value.sprintEnd] }, { reverse: true })) comments.push(c.value);
+    const comments = [];
+    for await (const c of kv.list<Comment>({ prefix: ["archive", s.value.sprintEnd] }, { reverse: true })) {
+      comments.push({ ...c.value, id: `${String(c.key[1])}-${String(c.key[2])}-${String(c.key[3])}` });
+    }
     sprints.push({ sprintEnd: s.value.sprintEnd, count: s.value.count, comments });
   }
   return json({ sprints });

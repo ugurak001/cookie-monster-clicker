@@ -16,7 +16,8 @@ sofortiges Anzeigen.
 - Rechts neben dem Monster (mobil darunter) stehen die letzten 20 Kommentare, alle 5 s aktualisiert.
   Jeder Kommentar hat ein „×“ zum Löschen (für alle, ohne Passwort).
 - **Reset** (neuer Sprint) setzt den Zähler zurück – nur mit Team-Passwort. Kommentare werden
-  dabei nicht gelöscht, sondern archiviert und unter `archive.html` (Link „Ältere Sprints“) einsehbar.
+  dabei nicht gelöscht, sondern archiviert und unter `archive.html` (Link „Ältere Sprints“) einsehbar –
+  dort ebenfalls einzeln per „×“ löschbar.
 
 ## Lokal starten
 
@@ -75,6 +76,7 @@ curl -X POST https://kooki-zaehler.ugurak001.deno.net/reset \
 | POST    | `/hit`     | Zähler +1, gibt `{count}` zurück                        |
 | POST    | `/comment` | `{text}` (1–100 Zeichen)                                |
 | DELETE  | `/comment/{ts}/{seq}` | einen Kommentar löschen (`id` aus `/state` = `ts-seq`) |
+| DELETE  | `/archive/{sprintEnd}/{ts}/{seq}` | einen archivierten Kommentar löschen (`id` aus `/archive`) |
 | POST    | `/reset`   | `{password, count?}` – setzt Zähler (default 0), archiviert Kommentare |
 | GET     | `/archive` | JSON `{sprints:[{sprintEnd, count, comments}]}` – wird von `archive.html` gerendert |
 | GET     | `/`, `/app.js`, `/style.css`, `/archive.html` | Frontend             |

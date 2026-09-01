@@ -75,3 +75,16 @@ Deno.test("static: serves the frontend from the same origin", async () => {
   assertEquals((await call("/main.ts")).status, 404); // only the three frontend files are exposed
   kv.close();
 });
+
+Deno.test("delete archived: removes one archived comment by id", async () => {
+  const { kv, call, post } = await setup();
+  await post("/comment", { text: "alt-bleibt" });
+  await post("/comment", { text: "alt-weg" });
+  await post("/reset", { password: PW });
+  let { sprints } = await (await call("/archive")).json();
+  const victim = sprints[0].comments.find((c: { text: string }) => c.text === "alt-weg");
+  assertEquals((await call(`/archive/${victim.id.replaceAll("-", "/")}`, { method: "DELETE" })).status, 200);
+  ({ sprints } = await (await call("/archive")).json());
+  assertEquals(sprints[0].comments.map((c: { text: string }) => c.text), ["alt-bleibt"]);
+  kv.close();
+});

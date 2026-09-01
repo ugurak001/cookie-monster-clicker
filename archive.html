@@ -13,7 +13,6 @@
     .archive .back:hover { opacity: 1; }
     .sprint { margin-top: 1.5rem; }
     .sprint h2 { font-size: .8rem; letter-spacing: .12em; text-transform: uppercase; opacity: .65; margin-bottom: .6rem; }
-    .archive .comments-list li { padding-right: .75rem; }
     .archive .empty, .archive .error { opacity: .6; font-size: .95rem; }
     .archive .error { color: #b4462e; opacity: 1; }
   </style>
@@ -53,11 +52,29 @@
           text.textContent = c.text;
           const time = document.createElement("time");
           time.textContent = fmt.format(c.ts);
-          li.append(text, time);
+          const del = document.createElement("button");
+          del.type = "button";
+          del.className = "c-del";
+          del.setAttribute("aria-label", "Kommentar löschen");
+          del.textContent = "×";
+          del.addEventListener("click", () => deleteArchived(c.id, li));
+          li.append(text, time, del);
           ul.append(li);
         }
         section.append(h2, ul);
         root.append(section);
+      }
+    }
+
+    // id = "<sprintEnd>-<ts>-<seq>" (see /archive); removes the entry for everyone.
+    async function deleteArchived(id, li) {
+      if (!confirm("Diesen archivierten Kommentar löschen?")) return;
+      try {
+        const res = await fetch(`${API}/archive/${id.replaceAll("-", "/")}`, { method: "DELETE" });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        li.remove();
+      } catch (err) {
+        alert("Löschen fehlgeschlagen – " + err.message);
       }
     }
 

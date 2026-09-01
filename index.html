@@ -4,29 +4,49 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Krümelmonster – KooKI-Zähler</title>
-  <link rel="stylesheet" href="style.css?v=9" />
+  <link rel="stylesheet" href="style.css?v=10" />
 </head>
 <body>
-  <main class="app">
-    <div class="counter">
-      <span class="count" id="count">0</span>
-      <span class="label">KooKIs in diesem Sprint gegessen</span>
-    </div>
+  <div class="layout">
+    <main class="app">
+      <div class="counter">
+        <span class="count" id="count">0</span>
+        <span class="label">KooKIs in diesem Sprint gegessen</span>
+      </div>
 
-    <div class="stage">
-      <div class="bubble" id="bubble">Immer wenn ich an einem Task arbeite, der nicht im Sprint ist</div>
-      <button class="monster" id="monster" type="button" aria-label="Krümelmonster füttern">
-        <span class="eye eye--left"><span class="pupil"></span></span>
-        <span class="eye eye--right"><span class="pupil"></span></span>
-        <span class="mouth" id="mouth"></span>
-      </button>
-    </div>
+      <div class="stage">
+        <div class="bubble" id="bubble">Immer wenn ich an einem Task arbeite, der nicht im Sprint ist</div>
+        <button class="monster" id="monster" type="button" aria-label="Krümelmonster füttern">
+          <span class="eye eye--left"><span class="pupil"></span></span>
+          <span class="eye eye--right"><span class="pupil"></span></span>
+          <span class="mouth" id="mouth"></span>
+        </button>
+      </div>
 
-    <p class="hint" id="hint">Klick das Monster – es will KooKIs!</p>
-    <button class="reset" id="reset" type="button">Reset</button>
-    <p class="status" id="status" aria-live="polite"></p>
-  </main>
+      <p class="hint" id="hint">Klick das Monster – es will KooKIs!</p>
 
-  <script src="app.js?v=9"></script>
+      <form class="comment-form" id="comment-form" autocomplete="off">
+        <label class="comment-label" for="comment-input">Warum diese KooKI? (optional)</label>
+        <div class="comment-row">
+          <input class="comment-input" id="comment-input" type="text" maxlength="100"
+                 placeholder="z. B. Kurze Frage, 45 Minuten später …" enterkeyhint="send" />
+          <button class="comment-send" type="submit" aria-label="Kommentar speichern">Speichern</button>
+        </div>
+        <span class="comment-left" id="comment-left">0/100</span>
+      </form>
+
+      <button class="reset" id="reset" type="button">Reset</button>
+      <p class="status" id="status" aria-live="polite"></p>
+    </main>
+
+    <aside class="comments" aria-label="Letzte Kommentare">
+      <h2 class="comments-title">Letzte KooKIs</h2>
+      <p class="comments-empty" id="comments-empty">Noch keine Kommentare – klick das Monster und schreib, warum.</p>
+      <ul class="comments-list" id="comments-list"></ul>
+      <a class="comments-archive" id="archive-link" href="#" target="_blank" rel="noopener">Ältere Sprints →</a>
+    </aside>
+  </div>
+
+  <script src="app.js?v=10"></script>
 </body>
 </html>

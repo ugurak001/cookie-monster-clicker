@@ -1,18 +1,11 @@
-// Cookie Monster Clicker – shared counter via Abacus API (frontend only, GitHub Pages).
+// Cookie Monster Clicker – shared counter + comments via small Deno Deploy backend (see server/).
 const KEY = "cookieMonster.count"; // localStorage cache for instant paint
 
-// Shared counter (Abacus) – same number for everyone who opens the link.
-const API = "https://abacus.jasoncameron.dev";
-const NS = "cookie-monster-ugurak001";
-const CKEY = "sprint-kookis-v2";
-// Reset needs Abacus' admin key. It sits in the frontend, so it's public —
-// fine for a fun counter; the team password below is just a "don't click by accident" guard.
-const ADMIN_KEY = "***REMOVED-ADMIN-KEY***";
-const TEAM_PASSWORD = "***REMOVED-PASSWORD***";
-const HIT_URL = `${API}/hit/${NS}/${CKEY}`;
-const GET_URL = `${API}/get/${NS}/${CKEY}`;
-const RESET_URL = `${API}/reset/${NS}/${CKEY}`;
+// Backend: count + comments live in Deno KV; reset is checked server-side against TEAM_PASSWORD.
+const IS_LOCAL = ["localhost", "127.0.0.1"].includes(location.hostname);
+const API = IS_LOCAL ? "http://localhost:8000" : "https://kooki-zaehler.ugurak001.deno.net";
 const POLL_MS = 5000;
+const MAX_COMMENT = 100;
 let pendingHits = 0;
 const countEl = document.getElementById("count");
 const monster = document.getElementById("monster");
@@ -20,7 +13,15 @@ const hint = document.getElementById("hint");
 const bubble = document.getElementById("bubble");
 const resetBtn = document.getElementById("reset");
 const statusEl = document.getElementById("status");
+const commentForm = document.getElementById("comment-form");
+const commentInput = document.getElementById("comment-input");
+const commentLeft = document.getElementById("comment-left");
+const commentsList = document.getElementById("comments-list");
+const commentsEmpty = document.getElementById("comments-empty");
 const nf = new Intl.NumberFormat("de-DE");
+const rtf = new Intl.RelativeTimeFormat("de", { numeric: "auto" });
+const canHover = matchMedia("(hover: hover)").matches; // don't pop the keyboard on phones
+document.getElementById("archive-link").href = `${API}/archive`;
 
 // Rotating "every time..." lines — a fresh reason with each KooKI.
 const LINES = [
@@ -54,7 +55,7 @@ const LINES = [
 
 let count = loadCount();   // instant paint from cache
 render();
-syncFromServer();          // fetch the real shared value
+syncFromServer();          // fetch the real shared value + comments
 setInterval(syncFromServer, POLL_MS);  // reflect other people's clicks
 
 monster.addEventListener("click", (e) => {
@@ -66,30 +67,65 @@ monster.addEventListener("click", (e) => {
   flyCookie(e);
   newBubble();
   hint.classList.add("gone");
+  showCommentForm();
   hitServer();  // count on the shared counter (authoritative)
 });
 
 resetBtn.addEventListener("click", async () => {
-  const pw = prompt("Team-Passwort für neuen Sprint (setzt den geteilten Zähler auf 0):");
+  const pw = prompt("Team-Passwort für neuen Sprint (setzt Zähler und Kommentare zurück):");
   if (!pw) return;
-  if (pw.trim() !== TEAM_PASSWORD) {
-    alert("Falsches Passwort.");
-    return;
-  }
   try {
-    const res = await fetch(RESET_URL, {
+    const res = await fetch(`${API}/reset`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${ADMIN_KEY}` },
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: pw.trim() }),
     });
-    if (!res.ok) throw new Error("Zähler-Server hat abgelehnt (HTTP " + res.status + ")");
-    const data = await res.json();
-    count = typeof data.value === "number" ? data.value : 0;
-    saveCount();
-    render(true);
+    if (res.status === 401) { alert("Falsches Passwort."); return; }
+    if (!res.ok) throw new Error("Server hat abgelehnt (HTTP " + res.status + ")");
+    applyState(await res.json(), true);
   } catch (err) {
     alert("Reset fehlgeschlagen: " + err.message);
   }
 });
+
+// Comment: optional short note per KooKI, max 100 chars, shared with everyone.
+commentInput.addEventListener("input", updateCommentLeft);
+commentForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const text = commentInput.value.trim();
+  if (!text) return;
+  commentInput.disabled = true;
+  try {
+    const res = await fetch(`${API}/comment`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || "HTTP " + res.status);
+    }
+    commentInput.value = "";
+    updateCommentLeft();
+    await syncFromServer();
+  } catch (err) {
+    setStatus(false, "Kommentar nicht gespeichert – " + err.message);
+  } finally {
+    commentInput.disabled = false;
+    if (canHover) commentInput.focus();
+  }
+});
+
+function showCommentForm() {
+  if (!commentForm.classList.contains("show")) {
+    commentForm.classList.add("show");
+    if (canHover) commentInput.focus();
+  }
+}
+
+function updateCommentLeft() {
+  commentLeft.textContent = `${commentInput.value.length}/${MAX_COMMENT}`;
+}
 
 function loadCount() {
   const n = parseInt(localStorage.getItem(KEY) ?? "", 10);
@@ -101,14 +137,13 @@ function saveCount() {
   try { localStorage.setItem(KEY, String(count)); } catch (_) {}
 }
 
-// Read the shared count from Abacus and show it (source of truth).
+// Read the shared state (count + comments) and show it (source of truth).
 async function syncFromServer() {
   if (pendingHits > 0) return; // don't stomp an optimistic value mid-click
   try {
-    const res = await fetch(GET_URL, { cache: "no-store" });
+    const res = await fetch(`${API}/state`, { cache: "no-store" });
     if (!res.ok) { setStatus(false, "Zähler-Server antwortet nicht (HTTP " + res.status + ")"); return; }
-    const data = await res.json();
-    if (typeof data.value === "number") { count = data.value; saveCount(); render(); setStatus(true, "geteilt · live"); }
+    applyState(await res.json());
   } catch (err) {
     console.warn("[cookie] sync failed:", err);
     setStatus(false, "Zähler-Server nicht erreichbar – evtl. Adblocker/Tracking-Schutz");
@@ -119,14 +154,42 @@ async function syncFromServer() {
 async function hitServer() {
   pendingHits++;
   try {
-    const res = await fetch(HIT_URL, { cache: "no-store" });
+    const res = await fetch(`${API}/hit`, { method: "POST", cache: "no-store" });
     if (!res.ok) { setStatus(false, "Klick nicht gezählt (HTTP " + res.status + ")"); return; }
-    const data = await res.json();
-    if (typeof data.value === "number") { count = data.value; saveCount(); render(); setStatus(true, "geteilt · live"); }
+    applyState(await res.json());
   } catch (err) {
     console.warn("[cookie] hit failed:", err);
     setStatus(false, "Klick nicht gezählt – Zähler-Server blockiert/nicht erreichbar");
   } finally { pendingHits--; }
+}
+
+function applyState(data, bump = false) {
+  if (typeof data.count === "number") { count = data.count; saveCount(); render(bump); }
+  if (Array.isArray(data.comments)) renderComments(data.comments);
+  setStatus(true, "geteilt · live");
+}
+
+function renderComments(comments) {
+  commentsEmpty.hidden = comments.length > 0;
+  commentsList.replaceChildren(...comments.map((c) => {
+    const li = document.createElement("li");
+    const text = document.createElement("span");
+    text.className = "c-text";
+    text.textContent = c.text;
+    const time = document.createElement("time");
+    time.dateTime = new Date(c.ts).toISOString();
+    time.textContent = relTime(c.ts);
+    li.append(text, time);
+    return li;
+  }));
+}
+
+function relTime(ts) {
+  const min = Math.round((ts - Date.now()) / 60000);
+  if (Math.abs(min) < 60) return rtf.format(min, "minute");
+  const h = Math.round(min / 60);
+  if (Math.abs(h) < 24) return rtf.format(h, "hour");
+  return rtf.format(Math.round(h / 24), "day");
 }
 
 // Small connectivity indicator so blocked/offline states are visible on screen.

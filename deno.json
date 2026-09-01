@@ -9,10 +9,8 @@
   "deploy": {
     "org": "ugurak001",
     "app": "kooki-zaehler"
+  },
+  "imports": {
+    "@std/assert": "jsr:@std/assert@1"
   }
 }
-
-
-
-
-

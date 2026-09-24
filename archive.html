@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>KooKI-Archiv – Ältere Sprints</title>
-  <link rel="stylesheet" href="style.css?v=12" />
+  <link rel="stylesheet" href="style.css?v=13" />
   <style>
     body { overflow-y: auto; -webkit-user-select: text; user-select: text; }
     .archive { width: min(92vw, 720px); margin: 2rem auto; }
@@ -24,16 +24,26 @@
     <div id="sprints"><p class="empty">Lade …</p></div>
   </main>
 
-  <script>
-    // Same rule as app.js: GitHub Pages talks to the Deno backend, everything else is same-origin.
-    const API = location.hostname.endsWith("github.io") ? "https://kooki-zaehler.ugurak001.deno.net" : "";
+  <script type="module">
+    import { db, ref, get, remove } from "./db.js?v=13";
     const root = document.getElementById("sprints");
     const fmt = new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" });
 
-    fetch(`${API}/archive`, { cache: "no-store" })
-      .then((r) => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
-      .then(({ sprints }) => render(sprints))
+    Promise.all([get(ref(db, "board/sprints")), get(ref(db, "board/archive"))])
+      .then(([sprintsSnap, archiveSnap]) => render(toSprints(sprintsSnap.val() ?? {}, archiveSnap.val() ?? {})))
       .catch((err) => { root.innerHTML = ""; root.append(p("error", "Archiv nicht erreichbar – " + err.message)); });
+
+    // Newest sprint first, comments newest first; id = "<sprintEnd>/<key>" for deletion.
+    function toSprints(sprints, archive) {
+      return Object.values(sprints)
+        .sort((a, b) => b.sprintEnd - a.sprintEnd)
+        .map((s) => ({
+          ...s,
+          comments: Object.entries(archive[s.sprintEnd] ?? {})
+            .map(([key, c]) => ({ ...c, id: `${s.sprintEnd}/${key}` }))
+            .sort((a, b) => b.ts - a.ts),
+        }));
+    }
 
     function render(sprints) {
       root.innerHTML = "";
@@ -66,12 +76,11 @@
       }
     }
 
-    // id = "<sprintEnd>/<ts>/<seq>" (see /archive); removes the entry for everyone.
+    // id = "<sprintEnd>/<key>"; removes the entry for everyone.
     async function deleteArchived(id, li) {
       if (!confirm("Diesen archivierten Kommentar löschen?")) return;
       try {
-        const res = await fetch(`${API}/archive/${id}`, { method: "DELETE" });
-        if (!res.ok) throw new Error("HTTP " + res.status);
+        await remove(ref(db, `board/archive/${id}`));
         li.remove();
       } catch (err) {
         alert("Löschen fehlgeschlagen – " + err.message);

@@ -1,0 +1,40 @@
+{
+  "rules": {
+    "secret": { ".read": false, ".write": false },
+    "board": {
+      ".write": "!data.child('resetAuth').exists() && newData.child('resetAuth').val() === root.child('secret').val()",
+      "resetAuth": {
+        ".write": "!newData.exists()",
+        ".validate": "newData.isString()"
+      },
+      "count": {
+        ".read": true,
+        ".write": "newData.isNumber() && ((!data.exists() && newData.val() === 1) || newData.val() === data.val() + 1)",
+        ".validate": "newData.isNumber() && newData.val() >= 0"
+      },
+      "comments": {
+        ".read": true,
+        ".indexOn": ["ts"],
+        "$id": {
+          ".write": "!data.exists() || !newData.exists()",
+          ".validate": "newData.hasChildren(['text', 'ts']) && newData.child('text').isString() && newData.child('text').val().length >= 1 && newData.child('text').val().length <= 100 && newData.child('ts').isNumber()"
+        }
+      },
+      "archive": {
+        ".read": true,
+        "$sprint": {
+          "$id": {
+            ".write": "!newData.exists()",
+            ".validate": "newData.hasChildren(['text', 'ts']) && newData.child('text').isString() && newData.child('ts').isNumber()"
+          }
+        }
+      },
+      "sprints": {
+        ".read": true,
+        "$sprint": {
+          ".validate": "newData.hasChildren(['sprintEnd', 'count', 'comments'])"
+        }
+      }
+    }
+  }
+}

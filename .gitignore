@@ -1,3 +1,5 @@
 .DS_Store
 main
 firebase-import.json
+firebase-debug.log
+.firebase/

@@ -3,6 +3,21 @@
 Alle nennenswerten Änderungen am Krümelmonster-KooKI-Zähler. Format angelehnt an
 [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen nach SemVer.
 
+## [2.1.0] – 2026-09-24
+
+### Behoben
+- **Backend wegen Free-Tier-Limit gesperrt** (`503 USAGE_EXCEEDED`): Das Frontend hat alle 5 s
+  `/state` abgefragt – auch in Hintergrund-Tabs. Ein offener Tab erzeugt so ~17.000 Requests/Tag,
+  das Deno-Deploy-Free-Tier (1 Mio. Requests und 1 Mio. KV-Reads pro Monat) war nach ca. zwei
+  Wochen aufgebraucht. Die Sperre gilt bis zum Monatswechsel; Zähler und Kommentare in Deno KV
+  bleiben erhalten.
+
+### Geändert
+- Polling-Intervall 5 s → 60 s (`POLL_MS` in `app.js`).
+- Hintergrund-Tabs pollen nicht mehr (`document.hidden`); beim Zurückkehren in den Tab wird sofort
+  synchronisiert (`visibilitychange`).
+- Statusmeldung bei nicht erreichbarem Server nennt jetzt auch das Monatslimit als mögliche Ursache.
+
 ## [2.0.0] – 2026-09-01
 
 Großer Umbau: eigenes Backend statt Zähler-API, Kommentare, keine Geheimnisse mehr im Repo.

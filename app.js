@@ -4,7 +4,7 @@ const KEY = "cookieMonster.count"; // localStorage cache for instant paint
 // Backend: count + comments live in Deno KV; reset is checked server-side against TEAM_PASSWORD.
 // Frontend and API share one origin (Deno Deploy). Only the legacy GitHub Pages copy talks cross-origin.
 const API = location.hostname.endsWith("github.io") ? "https://kooki-zaehler.ugurak001.deno.net" : "";
-const POLL_MS = 5000;
+const POLL_MS = 60000; // 5s blew the Deno Deploy free tier (1M req/month) – see CHANGELOG 2.1.0
 const MAX_COMMENT = 100;
 let pendingHits = 0;
 const countEl = document.getElementById("count");
@@ -57,6 +57,7 @@ let count = loadCount();   // instant paint from cache
 render();
 syncFromServer();          // fetch the real shared value + comments
 setInterval(syncFromServer, POLL_MS);  // reflect other people's clicks
+document.addEventListener("visibilitychange", () => { if (!document.hidden) syncFromServer(); }); // catch up when tab returns
 
 monster.addEventListener("click", (e) => {
   count += 1;
@@ -140,13 +141,14 @@ function saveCount() {
 // Read the shared state (count + comments) and show it (source of truth).
 async function syncFromServer() {
   if (pendingHits > 0) return; // don't stomp an optimistic value mid-click
+  if (document.hidden) return;  // background tabs don't poll – saves free-tier requests
   try {
     const res = await fetch(`${API}/state`, { cache: "no-store" });
     if (!res.ok) { setStatus(false, "Zähler-Server antwortet nicht (HTTP " + res.status + ")"); return; }
     applyState(await res.json());
   } catch (err) {
     console.warn("[cookie] sync failed:", err);
-    setStatus(false, "Zähler-Server nicht erreichbar – evtl. Adblocker/Tracking-Schutz");
+    setStatus(false, "Zähler-Server nicht erreichbar – Monatslimit erreicht oder Adblocker/Tracking-Schutz");
   }
 }
 

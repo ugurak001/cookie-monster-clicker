@@ -16,7 +16,7 @@ sofortiges Anzeigen.
 - Klick aufs Monster → +1 auf den geteilten Zähler.
 - Nach dem Klick erscheint ein Kommentarfeld: „Warum diese KooKI?“ (optional, max. 100 Zeichen).
   Enter oder „Speichern“ legt den Kommentar für alle sichtbar ab.
-- Rechts neben dem Monster (mobil darunter) stehen die letzten 20 Kommentare, alle 5 s aktualisiert.
+- Rechts neben dem Monster (mobil darunter) stehen die letzten 20 Kommentare, alle 60 s aktualisiert (nur im sichtbaren Tab – schont das Deno-Deploy-Free-Tier von 1 Mio. Requests/Monat).
   Jeder Kommentar hat ein „×“ zum Löschen (für alle, ohne Passwort).
 - **Reset** (neuer Sprint) setzt den Zähler zurück – nur mit Team-Passwort. Kommentare werden
   dabei nicht gelöscht, sondern archiviert und unter `archive.html` (Link „Ältere Sprints“) einsehbar –

@@ -1,12 +1,9 @@
-// Cookie Monster Clicker – shared counter + comments; frontend and API served by main.ts on Deno Deploy.
-const KEY = "cookieMonster.count"; // localStorage cache for instant paint
+// Cookie Monster Clicker – shared counter + comments on Firebase Realtime Database (no backend, no polling).
+import { db, ref, onValue, set, get, push, remove, query, orderByChild, limitToLast, increment, serverTimestamp } from "./db.js?v=13";
 
-// Backend: count + comments live in Deno KV; reset is checked server-side against TEAM_PASSWORD.
-// Frontend and API share one origin (Deno Deploy). Only the legacy GitHub Pages copy talks cross-origin.
-const API = location.hostname.endsWith("github.io") ? "https://kooki-zaehler.ugurak001.deno.net" : "";
-const POLL_MS = 60000; // 5s blew the Deno Deploy free tier (1M req/month) – see CHANGELOG 2.1.0
+const KEY = "cookieMonster.count"; // localStorage cache for instant paint
+const COMMENTS_SHOWN = 20;
 const MAX_COMMENT = 100;
-let pendingHits = 0;
 const countEl = document.getElementById("count");
 const monster = document.getElementById("monster");
 const hint = document.getElementById("hint");
@@ -55,9 +52,7 @@ const LINES = [
 
 let count = loadCount();   // instant paint from cache
 render();
-syncFromServer();          // fetch the real shared value + comments
-setInterval(syncFromServer, POLL_MS);  // reflect other people's clicks
-document.addEventListener("visibilitychange", () => { if (!document.hidden) syncFromServer(); }); // catch up when tab returns
+subscribe();               // live updates: count, comments, connection state
 
 monster.addEventListener("click", (e) => {
   count += 1;
@@ -69,22 +64,16 @@ monster.addEventListener("click", (e) => {
   newBubble();
   hint.classList.add("gone");
   showCommentForm();
-  hitServer();  // count on the shared counter (authoritative)
+  hitServer();  // atomic +1 on the shared counter
 });
 
 resetBtn.addEventListener("click", async () => {
   const pw = prompt("Team-Passwort für neuen Sprint (setzt Zähler und Kommentare zurück):");
   if (!pw) return;
   try {
-    const res = await fetch(`${API}/reset`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password: pw.trim() }),
-    });
-    if (res.status === 401) { alert("Falsches Passwort."); return; }
-    if (!res.ok) throw new Error("Server hat abgelehnt (HTTP " + res.status + ")");
-    applyState(await res.json(), true);
+    await resetSprint(await sha256Hex(pw.trim()));
   } catch (err) {
+    if (String(err?.message).includes("PERMISSION_DENIED")) { alert("Falsches Passwort."); return; }
     alert("Reset fehlgeschlagen: " + err.message);
   }
 });
@@ -97,18 +86,9 @@ commentForm.addEventListener("submit", async (e) => {
   if (!text) return;
   commentInput.disabled = true;
   try {
-    const res = await fetch(`${API}/comment`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || "HTTP " + res.status);
-    }
+    await push(ref(db, "board/comments"), { text: text.slice(0, MAX_COMMENT), ts: serverTimestamp() });
     commentInput.value = "";
     updateCommentLeft();
-    await syncFromServer();
   } catch (err) {
     setStatus(false, "Kommentar nicht gespeichert – " + err.message);
   } finally {
@@ -138,37 +118,64 @@ function saveCount() {
   try { localStorage.setItem(KEY, String(count)); } catch (_) {}
 }
 
-// Read the shared state (count + comments) and show it (source of truth).
-async function syncFromServer() {
-  if (pendingHits > 0) return; // don't stomp an optimistic value mid-click
-  if (document.hidden) return;  // background tabs don't poll – saves free-tier requests
+// Live subscriptions – Firebase pushes every change, nobody polls.
+function subscribe() {
+  onValue(ref(db, "board/count"), (snap) => {
+    const n = snap.val();
+    if (typeof n === "number") { count = n; saveCount(); render(); }
+  }, onDbError);
+  const latest = query(ref(db, "board/comments"), orderByChild("ts"), limitToLast(COMMENTS_SHOWN));
+  onValue(latest, (snap) => {
+    const comments = [];
+    snap.forEach((c) => { comments.push({ id: c.key, ...c.val() }); }); // ascending by ts
+    renderComments(comments.reverse());
+  }, onDbError);
+  onValue(ref(db, ".info/connected"), (snap) => {
+    setStatus(snap.val() === true, snap.val() === true ? "geteilt · live" : "Verbindung getrennt – Klicks werden nachgeholt");
+  });
+}
+
+function onDbError(err) {
+  console.warn("[cookie] db error:", err);
+  setStatus(false, "Zähler-Datenbank nicht erreichbar – " + err.message);
+}
+
+// Server-side atomic increment; onValue above renders the authoritative value.
+async function hitServer() {
   try {
-    const res = await fetch(`${API}/state`, { cache: "no-store" });
-    if (!res.ok) { setStatus(false, "Zähler-Server antwortet nicht (HTTP " + res.status + ")"); return; }
-    applyState(await res.json());
+    await set(ref(db, "board/count"), increment(1));
   } catch (err) {
-    console.warn("[cookie] sync failed:", err);
-    setStatus(false, "Zähler-Server nicht erreichbar – Monatslimit erreicht oder Adblocker/Tracking-Schutz");
+    console.warn("[cookie] hit failed:", err);
+    setStatus(false, "Klick nicht gezählt – " + err.message);
   }
 }
 
-// Increment the shared counter; the response is authoritative (includes others' clicks).
-async function hitServer() {
-  pendingHits++;
-  try {
-    const res = await fetch(`${API}/hit`, { method: "POST", cache: "no-store" });
-    if (!res.ok) { setStatus(false, "Klick nicht gezählt (HTTP " + res.status + ")"); return; }
-    applyState(await res.json());
-  } catch (err) {
-    console.warn("[cookie] hit failed:", err);
-    setStatus(false, "Klick nicht gezählt – Zähler-Server blockiert/nicht erreichbar");
-  } finally { pendingHits--; }
+// New sprint: comments move to board/archive/<sprintEnd>, count goes to 0. Nothing is deleted.
+// Security: board can only be overwritten with resetAuth === secret (see database.rules.json).
+// The stored resetAuth of the previous reset blocks all board-level writes, so we clear it first.
+async function resetSprint(passwordHash) {
+  const [countSnap, commentsSnap, archiveSnap, sprintsSnap] = await Promise.all([
+    get(ref(db, "board/count")), get(ref(db, "board/comments")),
+    get(ref(db, "board/archive")), get(ref(db, "board/sprints")),
+  ]);
+  const sprintEnd = Date.now();
+  const oldCount = countSnap.val() ?? 0;
+  const oldComments = commentsSnap.val() ?? {};
+  const archive = archiveSnap.val() ?? {};
+  const sprints = sprintsSnap.val() ?? {};
+  const moved = Object.keys(oldComments).length;
+  if (moved > 0) {
+    archive[sprintEnd] = oldComments;
+    sprints[sprintEnd] = { sprintEnd, count: oldCount, comments: moved };
+  }
+  await remove(ref(db, "board/resetAuth"));
+  await set(ref(db, "board"), { count: 0, archive, sprints, resetAuth: passwordHash });
+  render(true);
 }
 
-function applyState(data, bump = false) {
-  if (typeof data.count === "number") { count = data.count; saveCount(); render(bump); }
-  if (Array.isArray(data.comments)) renderComments(data.comments);
-  setStatus(true, "geteilt · live");
+async function sha256Hex(text) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 function renderComments(comments) {
@@ -192,13 +199,11 @@ function renderComments(comments) {
   }));
 }
 
-// Remove one comment for everyone (id = "<ts>/<seq>", see /state).
+// Remove one comment for everyone (id = database key); the live listener re-renders.
 async function deleteComment(id) {
   if (!confirm("Diesen Kommentar löschen?")) return;
   try {
-    const res = await fetch(`${API}/comment/${id}`, { method: "DELETE" });
-    if (!res.ok) throw new Error("HTTP " + res.status);
-    await syncFromServer();
+    await remove(ref(db, `board/comments/${id}`));
   } catch (err) {
     setStatus(false, "Löschen fehlgeschlagen – " + err.message);
   }

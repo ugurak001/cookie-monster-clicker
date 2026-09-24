@@ -3,6 +3,32 @@
 Alle nennenswerten Änderungen am Krümelmonster-KooKI-Zähler. Format angelehnt an
 [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen nach SemVer.
 
+## [3.0.0] – 2026-09-24
+
+Umzug von Deno Deploy auf Firebase Realtime Database – kein eigenes Backend mehr, kein Polling.
+
+### Geändert
+- **Datenhaltung**: Zähler, Kommentare und Archiv liegen in Firebase Realtime Database (Spark-Plan,
+  kostenlos, keine Zahlungsmethode). Der Browser redet direkt mit der Datenbank; Änderungen kommen
+  live per Push in alle offenen Tabs. Grund: Polling gegen ein Monatslimit (Deno) hat die App
+  nach zwei Wochen lahmgelegt (siehe 2.1.0).
+- **Sicherheit** über `database.rules.json`: Klick nur als +1, Kommentare anlegen/löschen für alle,
+  Reset (Überschreiben von `board`) nur mit passendem Passwort-Hash gegen `secret`. Passwort-Hash
+  ist weder lesbar noch schreibbar.
+- **Reset** läuft im Browser (SHA-256 per WebCrypto, dann atomares Überschreiben von `board`).
+  Kommentare wandern wie bisher ins Archiv.
+- Frontend-Skripte sind ES-Module; `db.js` initialisiert Firebase für `index.html` und `archive.html`.
+- Cache-Bust `?v=13`.
+
+### Entfernt
+- Deno-Backend (`main.ts`, Tests, `deno.json`) nach `archive/deno-backend/` verschoben. Die
+  Deno-Deploy-App `kooki-zaehler` wird nicht mehr gebraucht.
+- Status „Zähler-Server nicht erreichbar“ – ersetzt durch Firebase-Verbindungsstatus.
+
+### Migration
+- Daten aus der KV-Sicherung vom 24.09. (Zähler 10, 3 Kommentare, 1 Sprint-Eintrag) per
+  `firebase-import.json` in die Konsole importiert.
+
 ## [2.1.0] – 2026-09-24
 
 ### Behoben
